@@ -1,0 +1,95 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// Ustawienia LCD
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Ustawienia OneWire i czujników temperatury
+OneWire oneWire(A1);
+DallasTemperature tempSensors(&oneWire);
+
+// Piny dla diody RGB
+const int pinRed = 9;
+const int pinGreen = 10;
+const int pinBlue = 11;
+
+// Zmienne do przechowywania temperatury
+float tempIn = 0;
+float tempOut = 0;
+float maxTempOut = -127;
+float minTempOut = 127;
+
+void setup() {
+    // Inicjalizacja czujników temperatury
+    tempSensors.begin();
+
+    // Inicjalizacja wyświetlacza LCD
+    lcd.init();
+    lcd.backlight();
+    lcd.clear();
+
+    // Inicjalizacja diody RGB
+    pinMode(pinRed, OUTPUT);
+    pinMode(pinGreen, OUTPUT);
+    pinMode(pinBlue, OUTPUT);
+
+    // Ustawienie początkowych kolorów (wyłączone)
+    setRGB(0, 0, 0);
+
+    // Wiadomość startowa na LCD
+    lcd.setCursor(0, 0);
+    lcd.print("Weather Station");
+    delay(2000);
+    lcd.clear();
+}
+
+void loop() {
+    // Odczyt temperatur z czujników
+    tempSensors.requestTemperatures();
+    tempIn = tempSensors.getTempCByIndex(1);   // Czujnik wewnętrzny
+    tempOut = tempSensors.getTempCByIndex(0);  // Czujnik zewnętrzny
+
+    // Aktualizacja wartości maksymalnej i minimalnej
+    if (tempOut > maxTempOut) maxTempOut = tempOut;
+    if (tempOut < minTempOut) minTempOut = tempOut;
+
+    // Wyświetlanie temperatur na LCD
+    lcd.setCursor(0, 0);
+    lcd.print("In: ");
+    lcd.print(tempIn, 1);
+    lcd.print("C ");
+
+    lcd.setCursor(0, 1);
+    lcd.print("Out: ");
+    lcd.print(tempOut, 1);
+    lcd.print("C");
+
+    // Wyświetlanie wartości maksymalnej i minimalnej
+    lcd.setCursor(10, 0);
+    lcd.print("Max:");
+    lcd.print(maxTempOut, 1);
+
+    lcd.setCursor(10, 1);
+    lcd.print("Min:");
+    lcd.print(minTempOut, 1);
+
+    // Sprawdzenie strefy komfortu i sterowanie diodą RGB
+    if (tempOut < 20.0) {
+        setRGB(0, 0, 255); // Niebieski - za zimno
+    } else if (tempOut > 25.0) {
+        setRGB(255, 0, 0); // Czerwony - za gorąco
+    } else {
+        setRGB(0, 255, 0); // Zielony - strefa komfortu
+    }
+
+    delay(1000); // Odświeżenie co sekundę
+}
+
+// Funkcja ustawiająca kolor diody RGB
+void setRGB(int red, int green, int blue) {
+    analogWrite(pinRed, red);
+    analogWrite(pinGreen, green);
+    analogWrite(pinBlue, blue);
+}
